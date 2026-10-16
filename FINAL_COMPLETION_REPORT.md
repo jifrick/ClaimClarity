@@ -105,16 +105,20 @@
 ---
 
 ## 5. Verified vs. Unverified Status
-| Area | Status | Notes |
+| Area | Status | Verification Evidence / Notes |
 | :--- | :--- | :--- |
-| **Local Synthetic Journey** | **VERIFIED** | All 15 steps tested and working locally. |
-| **PostgreSQL Schema & RLS** | **VERIFIED** | Connected to pooler; Migrations 001 and 002 applied successfully. |
-| **Storage Abstraction** | **VERIFIED** | Memory & Supabase adapters implemented; startup safeguards tested. |
-| **Digital PDF Parsing** | **VERIFIED** | Real digital PDF fixture parsed with page coordinates via `pdf2json`. |
-| **Citation Grounding** | **VERIFIED** | Deterministic citation verifier rejects fabricated excerpts. |
-| **Live AI Provider API** | **UNVERIFIED (Pending Key)** | Adapters coded and mock-tested; waiting for live Gemini/OpenAI key. |
-| **Physical Cloud OCR** | **UNVERIFIED (Pending Key)** | Adapter coded and mock-tested; digital PDFs work locally without OCR. |
-| **Public Deployment** | **UNVERIFIED (Pending Host)**| Code and build are ready for Vercel/Railway deployment. |
+| **Git Working Tree & Remote** | **VERIFIED** | Clean working tree on `main` branch synced with `origin/main` (`https://github.com/jifrick/ClaimClarity.git`). Zero untracked or unpushed files. |
+| **PostgreSQL Schema & RLS** | **VERIFIED** | Verified directly via remote PostgreSQL pooler at `aws-0-ap-southeast-2.pooler.supabase.com:5432`. All 9 tables have `rowsecurity = true`. 17 RLS policies active. Constraints `uq_case_document_filename` verified. |
+| **Storage Abstraction & Safeguards** | **VERIFIED** | `IStorageAdapter` implemented. `validateStartupConfig()` verified by automated tests to halt on production/supabase startup without valid credentials, preventing silent fallback to memory. |
+| **Private Storage Bucket & RLS** | **VERIFIED** | Bucket `claim-documents` verified on hosted cluster (`public = false`, 15MB limit, `allowed_mime_types = ['application/pdf']`). 3 storage RLS policies verified on `storage.objects` for owner isolation. |
+| **Digital PDF Parsing** | **VERIFIED** | Real digital PDF fixture parsed with page coordinates via `pdf2json`. Zero OCR fees required for computer-generated PDFs. |
+| **Citation Grounding** | **VERIFIED** | Deterministic citation verifier strictly rejects fabricated excerpts and marks ungrounded text as `unsupported_citation`. |
+| **Automated Tests & Production Build** | **VERIFIED** | **58 of 58 automated tests pass across 11 test suites**. `tsc` and Vite build generate clean production bundles without warnings or errors. |
+| **Secrets & Bundle Exposure Audit** | **VERIFIED** | Grep audit confirmed zero confidential secrets (`SERVICE_ROLE_KEY`, `GEMINI_API_KEY`, `OPENAI_API_KEY`, etc.) are checked into Git or included in frontend client bundles. |
+| **Live AI Provider API** | **UNVERIFIED (Pending Key)** | Server-side Gemini 1.5 Pro and OpenAI GPT-4o adapters implemented and tested via mock fixtures; awaiting live API key entry in `apps/api/.env`. |
+| **Physical Cloud OCR Provider** | **UNVERIFIED (Pending Key)** | Typed OCR adapter boundary with `FallbackOcrProvider` returning `UNCONFIGURED` tested; awaiting cloud vision key if camera-scanned receipts are needed. |
+| **Google OAuth** | **UNVERIFIED (Pending OAuth App)** | Not configured in hosted Supabase project. Application does not simulate fake OAuth; falls back to email/password and synthetic demo switcher. |
+| **Public Hosting Deployment** | **UNVERIFIED (Pending Cloud Host)** | Application currently runs on local ports 3001 and 5173. No public URL (Vercel/Railway) is currently deployed. |
 
 ---
 
