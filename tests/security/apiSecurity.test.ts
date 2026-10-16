@@ -43,6 +43,11 @@ describe('API Security & Cross-Tenant Access Enforcement', () => {
   memoryStore.cases.set(caseAId, caseA);
   memoryStore.cases.set(caseBId, caseB);
 
+  // Ensure storage instance uses this memoryStore
+  import('../../apps/api/src/services/storage/index.js').then(({ setStorageInstance }) => {
+    setStorageInstance(memoryStore);
+  });
+
   it('rejects unauthenticated requests to protected endpoints with 401', async () => {
     const res = await request(app).get('/api/v1/cases');
     expect(res.status).toBe(401);

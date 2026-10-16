@@ -1,6 +1,6 @@
 import { Router, Request, Response } from 'express';
 import { requireAuth } from '../middleware/auth.js';
-import { memoryStore } from '../services/memoryStore.js';
+import { getStorage } from '../services/storage/index.js';
 import { 
   CreateCaseInputSchema, 
   Case, 
@@ -47,13 +47,29 @@ const upload = multer({
   }
 });
 
+// Helper to check case existence and ownership for tenant-aware 403 vs 404 responses
+async function checkCaseAccess(caseId: string, userId: string) {
+  const storage = getStorage();
+  const rawCase = await storage.getCaseRaw(caseId);
+  if (!rawCase || rawCase.deleted_at) {
+    return { status: 404 as const, error: 'Case not found', case: null };
+  }
+  if (rawCase.user_id !== userId) {
+    return { status: 403 as const, error: 'Forbidden', message: 'Unauthorized access to case.', case: null };
+  }
+  return { status: 200 as const, case: rawCase };
+}
+
 // GET /api/v1/health
 router.get('/health', (_req: Request, res: Response) => {
+  const storage = getStorage();
   res.json({
     status: 'healthy',
     timestamp: new Date().toISOString(),
     version: '1.0.0',
     service: 'ClaimClarity API',
+    storage_adapter: storage.name,
+    storage_persistent: storage.isPersistent,
   });
 });
 
@@ -68,26 +84,37 @@ router.get('/guidance/india', (_req: Request, res: Response) => {
 });
 
 // GET /api/v1/me
-router.get('/me', requireAuth, (req: Request, res: Response) => {
-  res.json({
-    user: req.user,
-  });
+router.get('/me', requireAuth, async (req: Request, res: Response) => {
+  try {
+    const storage = getStorage();
+    const profile = await storage.getProfile(req.user!.id);
+    res.json({
+      user: req.user,
+      profile,
+    });
+  } catch (err: any) {
+    res.status(500).json({ error: 'Failed to retrieve user profile', details: err.message });
+  }
 });
 
 // GET /api/v1/cases - List cases belonging to authenticated user
-router.get('/cases', requireAuth, (req: Request, res: Response) => {
-  const userId = req.user!.id;
-  const userCases = Array.from(memoryStore.cases.values()).filter(
-    c => c.user_id === userId && !c.deleted_at
-  );
-  res.json({ cases: userCases });
+router.get('/cases', requireAuth, async (req: Request, res: Response) => {
+  try {
+    const storage = getStorage();
+    const userCases = await storage.getCases(req.user!.id);
+    res.json({ cases: userCases });
+  } catch (err: any) {
+    res.status(500).json({ error: 'Failed to query cases', details: err.message });
+  }
 });
 
 // POST /api/v1/cases - Create new case with explicit consent
-router.post('/cases', requireAuth, (req: Request, res: Response) => {
+router.post('/cases', requireAuth, async (req: Request, res: Response) => {
   try {
     const input = CreateCaseInputSchema.parse(req.body);
-    const newCase: Case = {
+    const storage = getStorage();
+
+    const newCase = await storage.createCase({
       id: crypto.randomUUID(),
       user_id: req.user!.id,
       title: input.title,
@@ -98,12 +125,8 @@ router.post('/cases', requireAuth, (req: Request, res: Response) => {
       policy_number: input.policy_number || null,
       user_notes: input.user_notes || null,
       consent_version: 'v1.0',
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
-      deleted_at: null,
-    };
+    });
 
-    memoryStore.cases.set(newCase.id, newCase);
     res.status(201).json({ case: newCase });
   } catch (err: any) {
     res.status(400).json({ error: 'Validation Failed', details: err.errors || err.message });
@@ -111,90 +134,71 @@ router.post('/cases', requireAuth, (req: Request, res: Response) => {
 });
 
 // GET /api/v1/cases/:caseId - Get specific case
-router.get('/cases/:caseId', requireAuth, (req: Request, res: Response) => {
-  const c = memoryStore.cases.get(getParam(req.params.caseId));
-  if (!c || c.deleted_at) {
-    return res.status(404).json({ error: 'Case not found' });
+router.get('/cases/:caseId', requireAuth, async (req: Request, res: Response) => {
+  try {
+    const caseId = getParam(req.params.caseId);
+    const access = await checkCaseAccess(caseId, req.user!.id);
+    if (access.status !== 200) {
+      return res.status(access.status).json({ error: access.error, message: access.message });
+    }
+    res.json({ case: access.case });
+  } catch (err: any) {
+    res.status(500).json({ error: 'Database error', details: err.message });
   }
-  if (c.user_id !== req.user!.id) {
-    return res.status(403).json({ error: 'Forbidden', message: 'Unauthorized access to case.' });
-  }
-  res.json({ case: c });
 });
 
 // DELETE /api/v1/cases/:caseId - Soft delete / wipe case and documents
-router.delete('/cases/:caseId', requireAuth, (req: Request, res: Response) => {
-  const caseId = getParam(req.params.caseId);
-  const c = memoryStore.cases.get(caseId);
-  if (!c || c.deleted_at) {
-    return res.status(404).json({ error: 'Case not found' });
-  }
-  if (c.user_id !== req.user!.id) {
-    return res.status(403).json({ error: 'Forbidden', message: 'Unauthorized operation.' });
-  }
-
-  const isHardDelete = req.query.hard === 'true';
-
-  if (isHardDelete) {
-    // Complete hard erasure
-    memoryStore.cases.delete(caseId);
-  } else {
-    // Soft delete case record
-    c.deleted_at = new Date().toISOString();
-  }
-
-  // Cascade deletion wipe across memory records
-  memoryStore.findings.delete(caseId);
-  memoryStore.checklistItems.delete(caseId);
-  memoryStore.drafts.delete(caseId);
-
-  // Remove child documents and extracted blocks
-  const docIdsToDelete: string[] = [];
-  for (const doc of memoryStore.documents.values()) {
-    if (doc.case_id === caseId) {
-      docIdsToDelete.push(doc.id);
+router.delete('/cases/:caseId', requireAuth, async (req: Request, res: Response) => {
+  try {
+    const storage = getStorage();
+    const caseId = getParam(req.params.caseId);
+    const access = await checkCaseAccess(caseId, req.user!.id);
+    if (access.status !== 200) {
+      return res.status(access.status).json({ error: access.error, message: access.message });
     }
-  }
-  for (const docId of docIdsToDelete) {
-    memoryStore.documents.delete(docId);
-    memoryStore.documentBlocks.delete(docId);
-  }
 
-  res.json({
-    success: true,
-    erasure_type: isHardDelete ? 'hard_erasure' : 'soft_deletion',
-    message: isHardDelete 
-      ? 'Case, documents, extracted blocks, and drafts completely expunged.'
-      : 'Case soft-deleted and all associated document blocks and findings wiped securely.'
-  });
+    const isHardDelete = req.query.hard === 'true';
+    const result = await storage.deleteCase(caseId, req.user!.id, isHardDelete);
+    res.json({
+      success: true,
+      erasure_type: result.erasureType,
+      deleted_resources: result.deletedResources,
+      limitations: result.limitations || [],
+      message: result.message,
+    });
+  } catch (err: any) {
+    res.status(500).json({ error: 'Deletion failed', details: err.message });
+  }
 });
 
 // GET /api/v1/cases/:caseId/documents - Get documents for case
-router.get('/cases/:caseId/documents', requireAuth, (req: Request, res: Response) => {
-  const caseId = getParam(req.params.caseId);
-  const c = memoryStore.cases.get(caseId);
-  if (!c || c.deleted_at) {
-    return res.status(404).json({ error: 'Case not found' });
-  }
-  if (c.user_id !== req.user!.id) {
-    return res.status(403).json({ error: 'Forbidden', message: 'Unauthorized access.' });
-  }
+router.get('/cases/:caseId/documents', requireAuth, async (req: Request, res: Response) => {
+  try {
+    const storage = getStorage();
+    const caseId = getParam(req.params.caseId);
+    const access = await checkCaseAccess(caseId, req.user!.id);
+    if (access.status !== 200) {
+      return res.status(access.status).json({ error: access.error, message: access.message });
+    }
 
-  const docs = Array.from(memoryStore.documents.values()).filter(d => d.case_id === c.id);
-  res.json({ documents: docs });
+    const docs = await storage.getDocuments(access.case.id, req.user!.id);
+    res.json({ documents: docs });
+  } catch (err: any) {
+    res.status(500).json({ error: 'Failed to retrieve documents', details: err.message });
+  }
 });
 
 // POST /api/v1/cases/:caseId/documents - Upload document
 router.post('/cases/:caseId/documents', requireAuth, upload.single('file'), async (req: Request, res: Response) => {
   try {
+    const storage = getStorage();
     const caseId = getParam(req.params.caseId);
-    const c = memoryStore.cases.get(caseId);
-    if (!c || c.deleted_at) {
-      return res.status(404).json({ error: 'Case not found' });
+    const access = await checkCaseAccess(caseId, req.user!.id);
+    if (access.status !== 200) {
+      return res.status(access.status).json({ error: access.error, message: access.message });
     }
-    if (c.user_id !== req.user!.id) {
-      return res.status(403).json({ error: 'Forbidden', message: 'Unauthorized upload attempt.' });
-    }
+
+    const c = access.case;
 
     if (!req.file) {
       return res.status(400).json({ error: 'No PDF file provided.' });
@@ -209,7 +213,7 @@ router.post('/cases/:caseId/documents', requireAuth, upload.single('file'), asyn
     }
 
     // Verify per-case document limit (e.g. 10 documents)
-    const existingDocs = Array.from(memoryStore.documents.values()).filter(d => d.case_id === c.id);
+    const existingDocs = await storage.getDocuments(c.id, req.user!.id);
     if (existingDocs.length >= 10) {
       return res.status(400).json({
         error: 'Limit Exceeded',
@@ -235,18 +239,27 @@ router.post('/cases/:caseId/documents', requireAuth, upload.single('file'), asyn
       created_at: new Date().toISOString(),
     };
 
-    memoryStore.documents.set(docId, docRecord);
+    await storage.createDocument(docRecord, req.user!.id);
 
     // Run PDF text extraction
     const extraction = await extractPdfText(req.file.buffer, docId, c.id);
     if (extraction.success) {
       docRecord.page_count = extraction.pageCount;
-      docRecord.extraction_status = 'extracted';
+      docRecord.extraction_status = extraction.status;
       const allBlocks = extraction.pages.flatMap(p => p.blocks);
-      memoryStore.documentBlocks.set(docId, allBlocks);
+      await storage.saveDocumentBlocks(allBlocks, req.user!.id);
+      await storage.updateDocumentExtraction(docId, req.user!.id, {
+        page_count: extraction.pageCount,
+        extraction_status: extraction.status,
+        extraction_error: null,
+      });
     } else {
       docRecord.extraction_status = 'failed';
       docRecord.extraction_error = extraction.error || 'Text extraction failed';
+      await storage.updateDocumentExtraction(docId, req.user!.id, {
+        extraction_status: 'failed',
+        extraction_error: docRecord.extraction_error,
+      });
     }
 
     res.status(201).json({ document: docRecord });
@@ -257,63 +270,68 @@ router.post('/cases/:caseId/documents', requireAuth, upload.single('file'), asyn
 
 // POST /api/v1/cases/:caseId/analysis - Run source-grounded analysis
 router.post('/cases/:caseId/analysis', requireAuth, async (req: Request, res: Response) => {
-  const caseId = getParam(req.params.caseId);
-  const c = memoryStore.cases.get(caseId);
-  if (!c || c.deleted_at) {
-    return res.status(404).json({ error: 'Case not found' });
+  try {
+    const storage = getStorage();
+    const caseId = getParam(req.params.caseId);
+    const access = await checkCaseAccess(caseId, req.user!.id);
+    if (access.status !== 200) {
+      return res.status(access.status).json({ error: access.error, message: access.message });
+    }
+
+    const c = access.case;
+    const docs = await storage.getDocuments(c.id, req.user!.id);
+    const blocks = await storage.getCaseBlocks(c.id, req.user!.id);
+
+    const result = await runAnalysisPipeline(c, docs, blocks);
+
+    await storage.saveFindings(c.id, result.findings, req.user!.id);
+    await storage.saveChecklist(c.id, result.checklist, req.user!.id);
+    await storage.saveDrafts(c.id, [result.draft], req.user!.id);
+
+    res.json({
+      success: true,
+      findings: result.findings,
+      checklist: result.checklist,
+      draft: result.draft,
+      summary: result.summary,
+    });
+  } catch (err: any) {
+    res.status(500).json({ error: 'Analysis failed', details: err.message });
   }
-  if (c.user_id !== req.user!.id) {
-    return res.status(403).json({ error: 'Forbidden', message: 'Unauthorized operation.' });
-  }
-
-  const docs = Array.from(memoryStore.documents.values()).filter(d => d.case_id === c.id);
-  const blocks: any[] = [];
-  for (const doc of docs) {
-    const docBlocks = memoryStore.documentBlocks.get(doc.id) || [];
-    blocks.push(...docBlocks);
-  }
-
-  const result = await runAnalysisPipeline(c, docs, blocks);
-
-  memoryStore.findings.set(c.id, result.findings);
-  memoryStore.checklistItems.set(c.id, result.checklist);
-  memoryStore.drafts.set(c.id, [result.draft]);
-
-  res.json({
-    success: true,
-    findings: result.findings,
-    checklist: result.checklist,
-    draft: result.draft,
-    summary: result.summary,
-  });
 });
 
 // GET /api/v1/cases/:caseId/findings
-router.get('/cases/:caseId/findings', requireAuth, (req: Request, res: Response) => {
-  const caseId = getParam(req.params.caseId);
-  const c = memoryStore.cases.get(caseId);
-  if (!c || c.deleted_at) {
-    return res.status(404).json({ error: 'Case not found' });
+router.get('/cases/:caseId/findings', requireAuth, async (req: Request, res: Response) => {
+  try {
+    const storage = getStorage();
+    const caseId = getParam(req.params.caseId);
+    const access = await checkCaseAccess(caseId, req.user!.id);
+    if (access.status !== 200) {
+      return res.status(access.status).json({ error: access.error, message: access.message });
+    }
+
+    const findings = await storage.getFindings(access.case.id, req.user!.id);
+    res.json({ findings });
+  } catch (err: any) {
+    res.status(500).json({ error: 'Failed to retrieve findings', details: err.message });
   }
-  if (c.user_id !== req.user!.id) {
-    return res.status(403).json({ error: 'Forbidden', message: 'Unauthorized access.' });
-  }
-  const findings = memoryStore.findings.get(c.id) || [];
-  res.json({ findings });
 });
 
 // GET /api/v1/cases/:caseId/checklist
-router.get('/cases/:caseId/checklist', requireAuth, (req: Request, res: Response) => {
-  const caseId = getParam(req.params.caseId);
-  const c = memoryStore.cases.get(caseId);
-  if (!c || c.deleted_at) {
-    return res.status(404).json({ error: 'Case not found' });
+router.get('/cases/:caseId/checklist', requireAuth, async (req: Request, res: Response) => {
+  try {
+    const storage = getStorage();
+    const caseId = getParam(req.params.caseId);
+    const access = await checkCaseAccess(caseId, req.user!.id);
+    if (access.status !== 200) {
+      return res.status(access.status).json({ error: access.error, message: access.message });
+    }
+
+    const items = await storage.getChecklist(access.case.id, req.user!.id);
+    res.json({ items });
+  } catch (err: any) {
+    res.status(500).json({ error: 'Failed to retrieve checklist', details: err.message });
   }
-  if (c.user_id !== req.user!.id) {
-    return res.status(403).json({ error: 'Forbidden', message: 'Unauthorized access.' });
-  }
-  const items = memoryStore.checklistItems.get(c.id) || [];
-  res.json({ items });
 });
 
 // PATCH /api/v1/checklist/:itemId - Update item status with tenant check
@@ -321,52 +339,40 @@ const UpdateChecklistSchema = z.object({
   status: z.enum(['pending', 'in_progress', 'completed', 'not_applicable']),
 });
 
-router.patch('/checklist/:itemId', requireAuth, (req: Request, res: Response) => {
+router.patch('/checklist/:itemId', requireAuth, async (req: Request, res: Response) => {
   const parseResult = UpdateChecklistSchema.safeParse(req.body);
   if (!parseResult.success) {
     return res.status(400).json({ error: 'Invalid checklist status' });
   }
 
-  const itemId = getParam(req.params.itemId);
-  let targetItem: any = null;
-  let owningCaseId: string | null = null;
-
-  for (const [caseId, items] of memoryStore.checklistItems.entries()) {
-    const found = items.find(i => i.id === itemId);
-    if (found) {
-      targetItem = found;
-      owningCaseId = caseId;
-      break;
+  try {
+    const storage = getStorage();
+    const itemId = getParam(req.params.itemId);
+    const updated = await storage.updateChecklistItemStatus(itemId, parseResult.data.status, req.user!.id);
+    if (!updated) {
+      return res.status(403).json({ error: 'Forbidden', message: 'You cannot edit another user\'s checklist or item not found.' });
     }
+    res.json({ item: updated });
+  } catch (err: any) {
+    res.status(500).json({ error: 'Checklist update failed', details: err.message });
   }
-
-  if (!targetItem || !owningCaseId) {
-    return res.status(404).json({ error: 'Checklist item not found' });
-  }
-
-  // Verify ownership of the parent case
-  const c = memoryStore.cases.get(owningCaseId);
-  if (!c || c.deleted_at || c.user_id !== req.user!.id) {
-    return res.status(403).json({ error: 'Forbidden', message: 'You cannot edit another user\'s checklist.' });
-  }
-
-  targetItem.status = parseResult.data.status;
-  targetItem.updated_at = new Date().toISOString();
-  res.json({ item: targetItem });
 });
 
 // GET /api/v1/cases/:caseId/drafts
-router.get('/cases/:caseId/drafts', requireAuth, (req: Request, res: Response) => {
-  const caseId = getParam(req.params.caseId);
-  const c = memoryStore.cases.get(caseId);
-  if (!c || c.deleted_at) {
-    return res.status(404).json({ error: 'Case not found' });
+router.get('/cases/:caseId/drafts', requireAuth, async (req: Request, res: Response) => {
+  try {
+    const storage = getStorage();
+    const caseId = getParam(req.params.caseId);
+    const access = await checkCaseAccess(caseId, req.user!.id);
+    if (access.status !== 200) {
+      return res.status(access.status).json({ error: access.error, message: access.message });
+    }
+
+    const drafts = await storage.getDrafts(access.case.id, req.user!.id);
+    res.json({ drafts });
+  } catch (err: any) {
+    res.status(500).json({ error: 'Failed to retrieve drafts', details: err.message });
   }
-  if (c.user_id !== req.user!.id) {
-    return res.status(403).json({ error: 'Forbidden', message: 'Unauthorized access.' });
-  }
-  const drafts = memoryStore.drafts.get(c.id) || [];
-  res.json({ drafts });
 });
 
 // PATCH /api/v1/drafts/:draftId - Update draft content with tenant check
@@ -375,40 +381,23 @@ const UpdateDraftSchema = z.object({
   subject: z.string().max(500).optional(),
 });
 
-router.patch('/drafts/:draftId', requireAuth, (req: Request, res: Response) => {
+router.patch('/drafts/:draftId', requireAuth, async (req: Request, res: Response) => {
   const parseResult = UpdateDraftSchema.safeParse(req.body);
   if (!parseResult.success) {
     return res.status(400).json({ error: 'Invalid draft update payload', details: parseResult.error.errors });
   }
 
-  const draftId = getParam(req.params.draftId);
-  let targetDraft: any = null;
-  let owningCaseId: string | null = null;
-
-  for (const [caseId, drafts] of memoryStore.drafts.entries()) {
-    const found = drafts.find(d => d.id === draftId);
-    if (found) {
-      targetDraft = found;
-      owningCaseId = caseId;
-      break;
+  try {
+    const storage = getStorage();
+    const draftId = getParam(req.params.draftId);
+    const updated = await storage.updateDraft(draftId, parseResult.data, req.user!.id);
+    if (!updated) {
+      return res.status(403).json({ error: 'Forbidden', message: 'You cannot edit another user\'s draft or draft not found.' });
     }
+    res.json({ draft: updated });
+  } catch (err: any) {
+    res.status(500).json({ error: 'Draft update failed', details: err.message });
   }
-
-  if (!targetDraft || !owningCaseId) {
-    return res.status(404).json({ error: 'Draft not found' });
-  }
-
-  // Verify ownership of the parent case
-  const c = memoryStore.cases.get(owningCaseId);
-  if (!c || c.deleted_at || c.user_id !== req.user!.id) {
-    return res.status(403).json({ error: 'Forbidden', message: 'You cannot edit another user\'s draft.' });
-  }
-
-  if (parseResult.data.body) targetDraft.body = parseResult.data.body;
-  if (parseResult.data.subject) targetDraft.subject = parseResult.data.subject;
-  targetDraft.updated_at = new Date().toISOString();
-
-  res.json({ draft: targetDraft });
 });
 
 // POST /api/v1/cases/:caseId/feedback
@@ -418,28 +407,29 @@ const CreateFeedbackSchema = z.object({
   correction_text: z.string().max(2000).optional().nullable(),
 });
 
-router.post('/cases/:caseId/feedback', requireAuth, (req: Request, res: Response) => {
+router.post('/cases/:caseId/feedback', requireAuth, async (req: Request, res: Response) => {
   const caseId = getParam(req.params.caseId);
-  const c = memoryStore.cases.get(caseId);
-  if (!c || c.deleted_at) {
-    return res.status(404).json({ error: 'Case not found' });
-  }
-  if (c.user_id !== req.user!.id) {
-    return res.status(403).json({ error: 'Forbidden', message: 'Unauthorized feedback submission.' });
-  }
-
   const parseResult = CreateFeedbackSchema.safeParse(req.body);
   if (!parseResult.success) {
     return res.status(400).json({ error: 'Invalid feedback submission', details: parseResult.error.errors });
   }
 
-  memoryStore.feedback.push({
-    id: crypto.randomUUID(),
-    case_id: caseId,
-    finding_id: parseResult.data.finding_id || null,
-    rating: parseResult.data.rating,
-    correction_text: parseResult.data.correction_text || null,
-    created_at: new Date().toISOString(),
-  });
-  res.status(201).json({ success: true, message: 'Feedback recorded. Thank you for helping improve claim guidance.' });
+  try {
+    const storage = getStorage();
+    const access = await checkCaseAccess(caseId, req.user!.id);
+    if (access.status !== 200) {
+      return res.status(access.status).json({ error: access.error, message: access.message });
+    }
+
+    await storage.createFeedback({
+      case_id: caseId,
+      finding_id: parseResult.data.finding_id || null,
+      rating: parseResult.data.rating,
+      correction_text: parseResult.data.correction_text || null,
+    }, req.user!.id);
+
+    res.status(201).json({ success: true, message: 'Feedback recorded. Thank you for helping improve claim guidance.' });
+  } catch (err: any) {
+    res.status(500).json({ error: 'Feedback submission failed', details: err.message });
+  }
 });

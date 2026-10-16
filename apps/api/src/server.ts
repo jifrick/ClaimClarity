@@ -58,11 +58,25 @@ app.use((err: any, _req: express.Request, res: express.Response, _next: express.
   });
 });
 
+import { getStorage } from './services/storage/index.js';
+
+export function validateStartupConfig(): void {
+  // Validate storage adapter initialization (prevents unsafe demo fallback in production)
+  const storage = getStorage();
+  console.log(`[Storage]: Initialized adapter "${storage.name}" (persistent=${storage.isPersistent})`);
+}
+
 if (process.env.NODE_ENV !== 'test') {
-  app.listen(env.PORT, () => {
-    console.log(`ClaimClarity API Server listening securely on port ${env.PORT}`);
-    console.log(`Environment: ${env.NODE_ENV} | AI Provider Mode: ${env.AI_PROVIDER}`);
-  });
+  try {
+    validateStartupConfig();
+    app.listen(env.PORT, () => {
+      console.log(`ClaimClarity API Server listening securely on port ${env.PORT}`);
+      console.log(`Environment: ${env.NODE_ENV} | AI Provider: ${env.AI_PROVIDER} | Storage: ${env.STORAGE_MODE}`);
+    });
+  } catch (err: any) {
+    console.error('[CRITICAL STARTUP FAILURE]:', err.message);
+    process.exit(1);
+  }
 }
 
 export default app;
