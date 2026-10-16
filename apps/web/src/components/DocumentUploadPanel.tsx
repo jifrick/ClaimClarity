@@ -34,6 +34,14 @@ export const DocumentUploadPanel: React.FC<DocumentUploadPanelProps> = ({
         setSelectedFile(null);
         return;
       }
+      const isDuplicate = documents.some(
+        d => d.filename.toLowerCase() === file.name.toLowerCase()
+      );
+      if (isDuplicate) {
+        setError(`A document named "${file.name}" has already been uploaded for this case.`);
+        setSelectedFile(null);
+        return;
+      }
       setError(null);
       setSelectedFile(file);
     }

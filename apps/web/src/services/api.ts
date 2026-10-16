@@ -6,9 +6,33 @@ export async function apiRequest<T = any>(
 ): Promise<T> {
   const headers = new Headers(options.headers || {});
   
-  if (!headers.has('Authorization')) {
-    // Default to demo-token for rapid local evaluation / dev mode
+  // Read current user session from localStorage
+  const savedUser = localStorage.getItem('claimclarity_user');
+  let token: string | undefined;
+  let demoUserId: string | undefined;
+
+  if (savedUser) {
+    try {
+      const parsed = JSON.parse(savedUser);
+      if (parsed.token) {
+        token = parsed.token;
+      }
+      if (parsed.id) {
+        demoUserId = parsed.id;
+      }
+    } catch {
+      // Ignore
+    }
+  }
+
+  if (token) {
+    headers.set('Authorization', `Bearer ${token}`);
+  } else if (!headers.has('Authorization')) {
     headers.set('Authorization', 'Bearer demo-token');
+  }
+
+  if (demoUserId) {
+    headers.set('x-demo-user-id', demoUserId);
   }
 
   if (!headers.has('Content-Type') && !(options.body instanceof FormData)) {

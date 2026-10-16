@@ -62,6 +62,8 @@ export const AnalysisWorkspace: React.FC<AnalysisWorkspaceProps> = ({
     }
   };
 
+  const [draftSaved, setDraftSaved] = useState(false);
+
   const handleSaveDraft = async () => {
     if (!draft) return;
     try {
@@ -69,7 +71,8 @@ export const AnalysisWorkspace: React.FC<AnalysisWorkspaceProps> = ({
         method: 'PATCH',
         body: JSON.stringify({ body: editableDraft }),
       });
-      alert('Representation draft saved successfully.');
+      setDraftSaved(true);
+      setTimeout(() => setDraftSaved(false), 2500);
     } catch (err) {
       console.error('Failed to save draft', err);
     }
@@ -428,12 +431,20 @@ DISCLAIMER: ClaimClarity is an informational preparation tool. Confirm official 
 
               <button
                 onClick={handleSaveDraft}
-                className="px-4 py-2 text-xs font-semibold rounded-xl bg-brand-600 hover:bg-brand-700 text-white transition"
+                className="px-4 py-2 text-xs font-semibold rounded-xl bg-brand-600 hover:bg-brand-700 text-white transition flex items-center space-x-1.5"
               >
-                Save Changes
+                {draftSaved && <Check className="w-3.5 h-3.5 text-white" />}
+                <span>{draftSaved ? 'Saved!' : 'Save Changes'}</span>
               </button>
             </div>
           </div>
+
+          {draftSaved && (
+            <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-xl text-emerald-800 text-xs flex items-center space-x-2">
+              <Check className="w-4 h-4 text-emerald-600 flex-shrink-0" />
+              <span>Grievance representation draft saved successfully to your case file.</span>
+            </div>
+          )}
 
           <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl text-amber-900 text-xs">
             <strong>Verification Notice:</strong> Verify all dates, reference numbers, and personal details before sending. ClaimClarity never sends emails or files grievances automatically on your behalf.
