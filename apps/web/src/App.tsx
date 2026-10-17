@@ -13,19 +13,21 @@ const AppContent: React.FC = () => {
   const { user } = useAuth();
 
   return (
-    <div className="min-h-screen flex flex-col bg-[#B7D2D0] text-[#171717] font-sans">
-      <Navbar
-        currentView={currentView}
-        onNavigate={view => {
-          if (view === 'new_case') {
-            setShowNewCaseModal(true);
-          } else {
-            setCurrentView(view as any);
-          }
-        }}
-      />
+    <div className="min-h-screen flex flex-col bg-[#B7D2D0] text-[#171717] font-sans selection:bg-[#397783] selection:text-white">
+      <div className="animate-slide-down">
+        <Navbar
+          currentView={currentView}
+          onNavigate={view => {
+            if (view === 'new_case') {
+              setShowNewCaseModal(true);
+            } else {
+              setCurrentView(view as any);
+            }
+          }}
+        />
+      </div>
 
-      <main className="flex-1 pb-10">
+      <main className="flex-1 pb-10 animate-fade-scale">
         {currentView === 'landing' && (
           <LandingPage
             onStart={() => {

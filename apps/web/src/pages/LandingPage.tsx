@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { 
   ShieldCheck, 
   FileSearch, 
@@ -26,9 +26,28 @@ interface LandingPageProps {
 
 export const LandingPage: React.FC<LandingPageProps> = ({ onStart, onExploreDemo, onViewGuidance }) => {
   const [selectedTag, setSelectedTag] = useState<'REJECTION' | 'DEDUCTION' | 'PED_DISPUTE' | 'DELAY'>('REJECTION');
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            entry.target.classList.add('is-revealed');
+          }
+        });
+      },
+      { threshold: 0.12, rootMargin: '0px 0px -40px 0px' }
+    );
+
+    const elements = containerRef.current?.querySelectorAll('.reveal-on-scroll');
+    elements?.forEach((el) => observer.observe(el));
+
+    return () => observer.disconnect();
+  }, []);
 
   return (
-    <div className="w-full max-w-[1400px] mx-auto px-2 sm:px-6 lg:px-8 py-4 sm:py-6 space-y-8">
+    <div ref={containerRef} className="w-full max-w-[1400px] mx-auto px-2 sm:px-6 lg:px-8 py-4 sm:py-6 space-y-8">
       {/* =========================================================================
           MAIN EDITORIAL CONTAINER (White surface with generous rounded corners)
           ========================================================================= */}
@@ -39,8 +58,8 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onStart, onExploreDemo
             ======================================================================= */}
         <section className="relative rounded-[28px] sm:rounded-[36px] bg-[#397783] text-white overflow-hidden min-h-[480px] sm:min-h-[540px] lg:min-h-[600px] flex flex-col justify-between p-6 sm:p-10 lg:p-14">
           
-          {/* Background 3D Composition Image */}
-          <div className="absolute inset-0 z-0 pointer-events-none opacity-40 sm:opacity-50 lg:opacity-60 mix-blend-luminosity">
+          {/* Background 3D Composition Image with gentle float */}
+          <div className="absolute inset-0 z-0 pointer-events-none opacity-40 sm:opacity-50 lg:opacity-60 mix-blend-luminosity animate-float">
             <img 
               src="/hero-3d.jpg" 
               alt="Healthcare Claim Visual Composition" 
@@ -152,7 +171,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onStart, onExploreDemo
         <section className="pt-8 sm:pt-12 grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
           
           {/* Left Column: Asymmetrical Card Showcase (Inspired by reference left photo card) */}
-          <div className="lg:col-span-5 space-y-4">
+          <div className="lg:col-span-5 space-y-4 reveal-on-scroll reveal-delay-1">
             <div>
               <span className="text-xs font-black uppercase tracking-widest text-[#397783]">
                 GROUNDED RESOLUTION
@@ -166,7 +185,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onStart, onExploreDemo
             </div>
 
             {/* Visual Mini-Card with Hospital Illustration */}
-            <div className="relative rounded-3xl overflow-hidden border border-slate-200/80 bg-slate-50 group transition hover:shadow-md">
+            <div className="relative rounded-3xl overflow-hidden border border-slate-200/80 bg-slate-50 group transition duration-300 hover:shadow-lg hover:-translate-y-1">
               <img 
                 src="/card-hospital.jpg" 
                 alt="Hospital Invoices & Evidence" 
@@ -204,7 +223,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onStart, onExploreDemo
 
           {/* Right Column: Benefits You Can Get By Using ClaimClarity */}
           <div className="lg:col-span-7 space-y-6">
-            <div className="border-b border-slate-200 pb-4">
+            <div className="border-b border-slate-200 pb-4 reveal-on-scroll">
               <h2 className="font-display text-2xl sm:text-3xl font-black text-[#171717] uppercase tracking-tight">
                 CAPABILITIES FOR POLICYHOLDERS
               </h2>
@@ -214,7 +233,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onStart, onExploreDemo
             </div>
 
             {/* Benefit Row 1 */}
-            <div className="flex items-start space-x-4 p-4 rounded-2xl border border-slate-100 hover:border-slate-200 hover:bg-slate-50/50 transition">
+            <div className="flex items-start space-x-4 p-4 rounded-2xl border border-slate-100 hover:border-slate-200 hover:bg-slate-50/50 transition duration-300 hover:translate-x-1.5 reveal-on-scroll reveal-delay-1">
               <div className="w-12 h-12 rounded-2xl bg-[#daf0ee] text-[#264f59] flex items-center justify-center flex-shrink-0 shadow-sm">
                 <FileCheck2 className="w-6 h-6" />
               </div>
@@ -229,7 +248,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onStart, onExploreDemo
             </div>
 
             {/* Benefit Row 2 */}
-            <div className="flex items-start space-x-4 p-4 rounded-2xl border border-slate-100 hover:border-slate-200 hover:bg-slate-50/50 transition">
+            <div className="flex items-start space-x-4 p-4 rounded-2xl border border-slate-100 hover:border-slate-200 hover:bg-slate-50/50 transition duration-300 hover:translate-x-1.5 reveal-on-scroll reveal-delay-2">
               <div className="w-12 h-12 rounded-2xl bg-amber-100 text-amber-900 flex items-center justify-center flex-shrink-0 shadow-sm">
                 <Scale className="w-6 h-6" />
               </div>
@@ -244,7 +263,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onStart, onExploreDemo
             </div>
 
             {/* Benefit Row 3 */}
-            <div className="flex items-start space-x-4 p-4 rounded-2xl border border-slate-100 hover:border-slate-200 hover:bg-slate-50/50 transition">
+            <div className="flex items-start space-x-4 p-4 rounded-2xl border border-slate-100 hover:border-slate-200 hover:bg-slate-50/50 transition duration-300 hover:translate-x-1.5 reveal-on-scroll reveal-delay-3">
               <div className="w-12 h-12 rounded-2xl bg-emerald-100 text-emerald-900 flex items-center justify-center flex-shrink-0 shadow-sm">
                 <FileSignature className="w-6 h-6" />
               </div>
@@ -259,7 +278,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onStart, onExploreDemo
             </div>
 
             {/* Safety Disclaimer Callout */}
-            <div className="p-4 rounded-2xl bg-[#daf0ee]/40 border border-[#b7d2d0] text-xs text-[#20444c] flex items-start space-x-3">
+            <div className="p-4 rounded-2xl bg-[#daf0ee]/40 border border-[#b7d2d0] text-xs text-[#20444c] flex items-start space-x-3 reveal-on-scroll reveal-delay-4">
               <AlertCircle className="w-4 h-4 text-[#397783] flex-shrink-0 mt-0.5" />
               <p className="leading-relaxed">
                 <strong>Informational Boundary:</strong> ClaimClarity is an informational preparation tool. We do not provide legal advice or guarantee insurance reversals. Review all drafts before official submission through IRDAI channels.
