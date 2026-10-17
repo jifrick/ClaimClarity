@@ -388,7 +388,7 @@ DISCLAIMER: ClaimClarity is an informational preparation tool. Confirm official 
                     <p className="text-xs text-slate-500 mt-0.5">{item.reason}</p>
                     {item.evidence_refs && item.evidence_refs.length > 0 && (
                       <div className="flex items-center space-x-1.5 mt-2">
-                        {item.evidence_refs.map((ref, idx) => (
+                        {item.evidence_refs.map((ref: string, idx: number) => (
                           <span key={idx} className="text-[10px] font-mono px-2 py-0.5 rounded bg-slate-100 text-slate-600">
                             {ref}
                           </span>

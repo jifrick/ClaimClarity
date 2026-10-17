@@ -122,7 +122,20 @@
 
 ---
 
-## 6. How to Run Locally
+## 6. Vercel Monorepo Build Fix
+- **Issue**: Vercel failed with `TS2307: Cannot find module '@claimclarity/shared'` and implicit `any` parameter errors on `(ref, idx)`.
+- **Root Cause**: In fresh CI checkouts where `packages/shared/dist` has not yet been compiled, `apps/web` running `tsc` looked for `@claimclarity/shared` declaration files in `packages/shared/dist/index.d.ts` which did not exist before building.
+- **Resolution**:
+  1. Configured TypeScript path mapping in `apps/web/tsconfig.json` (`"@claimclarity/shared": ["../../packages/shared/src/index.ts"]`) so `tsc` resolves source types directly.
+  2. Configured Vite path resolution alias in `apps/web/vite.config.ts` mapping `@claimclarity/shared` to `../../packages/shared/src/index.ts`.
+  3. Added standard `exports` and `module` definition to `packages/shared/package.json`.
+  4. Added `prebuild` hook to `apps/web/package.json` ensuring `@claimclarity/shared` compiles before web build even if executed standalone.
+  5. Explicitly typed `ref: string` and `idx: number` in `AnalysisWorkspace.tsx`.
+- **Verification**: Verified clean standalone build in `apps/web` without prior artifacts and full monorepo root build (`npm run build`, `npm test` - 58 tests pass).
+
+---
+
+## 7. How to Run Locally
 
 ### Start Backend API Server
 ```bash
@@ -143,5 +156,5 @@ npm test
 
 ---
 
-## 7. Next Actions for User
+## 8. Next Actions for User
 When you are ready to configure cloud keys and deploy to production, consult [`FINAL_SETUP_CHECKLIST.md`](file:///c:/Users/muhammed%20jifri%20ck/Documents/new%20one/FINAL_SETUP_CHECKLIST.md).

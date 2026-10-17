@@ -87,8 +87,8 @@ Digital PDFs (e.g. computer-generated repudiation letters, e-insurance policies,
 ## 5. Hosting & Deployment Configuration
 
 ### Frontend Web (Vercel / Cloudflare Pages)
-- **Root Directory**: `apps/web`
-- **Build Command**: `npm run build`
+- **Root Directory**: `apps/web` (or Monorepo Root)
+- **Build Command**: `npm run build` (Note: `apps/web` has an automated `prebuild` hook that builds `@claimclarity/shared` first if needed)
 - **Output Directory**: `dist`
 - **Environment Variables**:
   ```env
