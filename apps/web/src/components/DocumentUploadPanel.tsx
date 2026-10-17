@@ -76,14 +76,17 @@ export const DocumentUploadPanel: React.FC<DocumentUploadPanelProps> = ({
   return (
     <div className="space-y-6">
       {/* Upload Box */}
-      <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm">
-        <h3 className="text-base font-bold text-slate-900 mb-1">Upload Claim & Policy Documents</h3>
-        <p className="text-xs text-slate-500 mb-4">
+      <div className="bg-white rounded-3xl border border-slate-200/90 p-6 sm:p-8 shadow-sm">
+        <span className="text-[10px] font-bold uppercase tracking-wider text-[#397783]">
+          DOCUMENT INGESTION
+        </span>
+        <h3 className="text-base font-bold text-slate-900 mt-0.5 mb-1">Upload Claim & Policy Documents</h3>
+        <p className="text-xs text-slate-500 mb-5">
           Upload PDF documents such as your Insurer Repudiation Letter, Policy Terms/Schedule, or Hospital Invoices. Text will be segmented into page blocks with citation tracking.
         </p>
 
         {error && (
-          <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-xl text-red-700 text-xs flex items-center space-x-2">
+          <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-2xl text-red-700 text-xs flex items-center space-x-2">
             <AlertCircle className="w-4 h-4 flex-shrink-0" />
             <span>{error}</span>
           </div>
@@ -92,13 +95,13 @@ export const DocumentUploadPanel: React.FC<DocumentUploadPanelProps> = ({
         <form onSubmit={handleUpload} className="space-y-4">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
-              <label className="block text-xs font-semibold uppercase tracking-wider text-slate-600 mb-1">
+              <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1.5">
                 Document Classification *
               </label>
               <select
                 value={documentType}
                 onChange={e => setDocumentType(e.target.value as DocumentType)}
-                className="w-full px-3 py-2 text-sm rounded-xl border border-slate-300 bg-white focus:ring-2 focus:ring-brand-500"
+                className="w-full px-3.5 py-2.5 text-xs rounded-xl border border-slate-300 bg-white focus:ring-2 focus:ring-[#397783] focus:outline-none"
               >
                 <option value="claim_rejection_letter">Claim Rejection / Repudiation Letter</option>
                 <option value="settlement_letter">Settlement / Deduction Voucher</option>
@@ -111,23 +114,23 @@ export const DocumentUploadPanel: React.FC<DocumentUploadPanelProps> = ({
             </div>
 
             <div>
-              <label className="block text-xs font-semibold uppercase tracking-wider text-slate-600 mb-1">
+              <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1.5">
                 Select PDF File *
               </label>
               <input
                 type="file"
                 accept=".pdf,application/pdf"
                 onChange={handleFileChange}
-                className="w-full text-xs text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-semibold file:bg-brand-50 file:text-brand-700 hover:file:bg-brand-100"
+                className="w-full text-xs text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-bold file:bg-[#daf0ee] file:text-[#20444c] hover:file:bg-[#b7d2d0]"
               />
             </div>
           </div>
 
-          <div className="flex justify-end">
+          <div className="flex justify-end pt-2">
             <button
               type="submit"
               disabled={!selectedFile || isUploading}
-              className="px-5 py-2 text-sm font-semibold text-white bg-slate-900 hover:bg-slate-800 disabled:opacity-50 rounded-xl shadow-sm transition flex items-center space-x-2"
+              className="px-6 py-2.5 text-xs font-bold uppercase tracking-wider text-white bg-[#171717] hover:bg-black disabled:opacity-50 rounded-full shadow-sm transition flex items-center space-x-2"
             >
               {isUploading ? (
                 <>
@@ -136,7 +139,7 @@ export const DocumentUploadPanel: React.FC<DocumentUploadPanelProps> = ({
                 </>
               ) : (
                 <>
-                  <Upload className="w-4 h-4" />
+                  <Upload className="w-4 h-4 text-emerald-400" />
                   <span>Upload & Extract</span>
                 </>
               )}
@@ -146,15 +149,15 @@ export const DocumentUploadPanel: React.FC<DocumentUploadPanelProps> = ({
       </div>
 
       {/* Document Ingestion List */}
-      <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm">
+      <div className="bg-white rounded-3xl border border-slate-200/90 p-6 sm:p-8 shadow-sm">
         <div className="flex items-center justify-between mb-4">
-          <h4 className="text-sm font-bold text-slate-900">
+          <h4 className="text-sm font-bold text-slate-900 uppercase tracking-wide">
             Case Documents ({documents.length})
           </h4>
           {documents.length > 0 && (
             <button
               onClick={onContinueToAnalysis}
-              className="px-5 py-2 text-sm font-semibold rounded-xl bg-brand-600 hover:bg-brand-700 text-white shadow-sm transition flex items-center space-x-1.5"
+              className="px-5 py-2 text-xs font-bold uppercase tracking-wider rounded-full bg-[#397783] hover:bg-[#2B5E68] text-white shadow-sm transition flex items-center space-x-1.5"
             >
               <span>Run Grounded Analysis</span>
               <ArrowRight className="w-4 h-4" />

@@ -14,90 +14,130 @@ export const Navbar: React.FC<NavbarProps> = ({ currentView, onNavigate }) => {
 
   return (
     <>
-      <header className="sticky top-0 z-50 bg-white/95 backdrop-blur border-b border-slate-200">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
-          <div className="flex items-center space-x-3 cursor-pointer" onClick={() => onNavigate('landing')}>
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-brand-700 to-brand-500 flex items-center justify-center text-white shadow-sm shadow-brand-500/20">
+      <header className="pt-4 sm:pt-6 pb-2 px-4 sm:px-8 max-w-[1400px] mx-auto w-full">
+        <div className="flex items-center justify-between gap-4">
+          {/* Left Brand + Pill Navigation Menu */}
+          <div className="flex items-center bg-white rounded-full p-1.5 shadow-sm border border-black/5">
+            {/* Circular Logo Icon */}
+            <div 
+              onClick={() => onNavigate('landing')} 
+              className="w-10 h-10 rounded-full bg-[#397783] hover:bg-[#2B5E68] text-white flex items-center justify-center cursor-pointer transition shadow-inner flex-shrink-0"
+              title="ClaimClarity Home"
+            >
               <Shield className="w-5 h-5" />
             </div>
-            <div>
-              <span className="text-xl font-bold tracking-tight text-slate-900">Claim<span className="text-brand-600">Clarity</span></span>
-              <span className="block text-[10px] uppercase font-semibold text-slate-400 tracking-wider">India Health InsurTech</span>
-            </div>
+
+            {/* Pill Navigation Links */}
+            <nav className="flex items-center space-x-1 sm:space-x-1.5 pl-2 sm:pl-3 pr-1 text-xs sm:text-sm font-medium">
+              <button
+                onClick={() => onNavigate('landing')}
+                className={`px-3.5 py-1.5 rounded-full transition ${
+                  currentView === 'landing'
+                    ? 'bg-[#171717] text-white font-semibold shadow-sm'
+                    : 'text-[#171717]/70 hover:text-[#171717] hover:bg-black/5'
+                }`}
+              >
+                Home
+              </button>
+              <button
+                onClick={() => onNavigate('how_it_works')}
+                className={`px-3.5 py-1.5 rounded-full transition ${
+                  currentView === 'how_it_works'
+                    ? 'bg-[#171717] text-white font-semibold shadow-sm'
+                    : 'text-[#171717]/70 hover:text-[#171717] hover:bg-black/5'
+                }`}
+              >
+                How It Works
+              </button>
+              <button
+                onClick={() => onNavigate('guidance')}
+                className={`hidden md:inline-flex px-3.5 py-1.5 rounded-full transition ${
+                  currentView === 'guidance'
+                    ? 'bg-[#171717] text-white font-semibold shadow-sm'
+                    : 'text-[#171717]/70 hover:text-[#171717] hover:bg-black/5'
+                }`}
+              >
+                IRDAI Rules
+              </button>
+              <button
+                onClick={() => onNavigate('privacy')}
+                className={`hidden lg:inline-flex px-3.5 py-1.5 rounded-full transition ${
+                  currentView === 'privacy'
+                    ? 'bg-[#171717] text-white font-semibold shadow-sm'
+                    : 'text-[#171717]/70 hover:text-[#171717] hover:bg-black/5'
+                }`}
+              >
+                Privacy
+              </button>
+              {user && (
+                <button
+                  onClick={() => onNavigate('dashboard')}
+                  className={`px-3.5 py-1.5 rounded-full transition ${
+                    currentView === 'dashboard' || currentView === 'case_workspace'
+                      ? 'bg-[#171717] text-white font-semibold shadow-sm'
+                      : 'text-[#171717]/70 hover:text-[#171717] hover:bg-black/5'
+                  }`}
+                >
+                  My Cases
+                </button>
+              )}
+            </nav>
           </div>
 
-          <nav className="hidden md:flex items-center space-x-6 text-sm font-medium text-slate-600">
-            <button 
-              onClick={() => onNavigate('landing')}
-              className={`transition hover:text-slate-900 ${currentView === 'landing' ? 'text-brand-600 font-semibold' : ''}`}
-            >
-              Overview
-            </button>
-            <button 
-              onClick={() => onNavigate('how_it_works')}
-              className={`transition hover:text-slate-900 ${currentView === 'how_it_works' ? 'text-brand-600 font-semibold' : ''}`}
-            >
-              How It Works
-            </button>
-            <button 
-              onClick={() => onNavigate('guidance')}
-              className={`transition hover:text-slate-900 ${currentView === 'guidance' ? 'text-brand-600 font-semibold' : ''}`}
-            >
-              IRDAI Grievance Rules
-            </button>
-            <button 
-              onClick={() => onNavigate('privacy')}
-              className={`transition hover:text-slate-900 ${currentView === 'privacy' ? 'text-brand-600 font-semibold' : ''}`}
-            >
-              Privacy & Security
-            </button>
-            {user && (
-              <button 
-                onClick={() => onNavigate('dashboard')}
-                className={`transition hover:text-slate-900 ${currentView === 'dashboard' || currentView === 'case_workspace' ? 'text-brand-600 font-semibold' : ''}`}
-              >
-                My Claim Cases
-              </button>
-            )}
-          </nav>
-
-          <div className="flex items-center space-x-3">
+          {/* Right Action Buttons */}
+          <div className="flex items-center space-x-2 sm:space-x-3">
             {user ? (
-              <div className="flex items-center space-x-2 sm:space-x-3">
-                <button 
+              <div className="flex items-center space-x-2 bg-white rounded-full p-1 shadow-sm border border-black/5">
+                <button
                   onClick={() => setShowAuthModal(true)}
                   title={user.isDemo ? "Switch Synthetic Demo User" : "Account Profile"}
-                  className="inline-flex items-center space-x-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg bg-brand-50 text-brand-700 border border-brand-200 hover:bg-brand-100 transition"
+                  className="inline-flex items-center space-x-1.5 px-3 py-1.5 text-xs font-semibold rounded-full bg-[#daf0ee] text-[#264f59] hover:bg-[#b7d2d0] transition"
                 >
                   <User className="w-3.5 h-3.5" />
-                  <span className="max-w-[100px] truncate">{user.displayName.split(' ')[0]}</span>
+                  <span className="max-w-[90px] truncate">{user.displayName.split(' ')[0]}</span>
                   {user.isDemo && (
-                    <span className="text-[9px] px-1.5 py-0.2 rounded bg-amber-200 text-amber-900 font-mono">Demo</span>
+                    <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-amber-200 text-amber-900 font-mono">Demo</span>
                   )}
                 </button>
                 <button
                   onClick={() => onNavigate('new_case')}
-                  className="px-3.5 py-2 text-xs sm:text-sm font-semibold rounded-lg bg-brand-600 hover:bg-brand-700 text-white shadow-sm transition flex items-center space-x-1.5"
+                  className="px-4 py-2 text-xs sm:text-sm font-semibold rounded-full bg-[#397783] hover:bg-[#2B5E68] text-white shadow-sm transition flex items-center space-x-1.5"
                 >
                   <span>Analyze Claim</span>
-                  <ArrowRight className="w-4 h-4" />
+                  <ArrowRight className="w-3.5 h-3.5" />
                 </button>
                 <button
                   onClick={logout}
                   title="Sign out"
-                  className="p-2 text-slate-400 hover:text-slate-600 rounded-lg hover:bg-slate-100 transition"
+                  className="p-2 text-slate-400 hover:text-slate-700 rounded-full hover:bg-slate-100 transition"
                 >
                   <LogOut className="w-4 h-4" />
                 </button>
               </div>
             ) : (
-              <button
-                onClick={() => setShowAuthModal(true)}
-                className="px-4 py-2 text-sm font-semibold rounded-lg bg-slate-900 hover:bg-slate-800 text-white shadow-sm transition flex items-center space-x-1.5"
-              >
-                <LogIn className="w-4 h-4" />
-                <span>Sign In</span>
-              </button>
+              <div className="flex items-center space-x-2">
+                <button
+                  onClick={() => onNavigate('guidance')}
+                  className="hidden sm:inline-flex items-center space-x-2 px-4 py-2 text-xs font-medium text-[#171717]/80 hover:text-[#171717] transition"
+                >
+                  <ExternalLink className="w-3.5 h-3.5" />
+                  <span>IRDAI Guidance</span>
+                </button>
+                <button
+                  onClick={() => setShowAuthModal(true)}
+                  className="px-5 py-2.5 text-xs sm:text-sm font-semibold rounded-full bg-white hover:bg-slate-50 text-[#171717] shadow-sm border border-black/5 transition flex items-center space-x-1.5"
+                >
+                  <LogIn className="w-4 h-4 text-[#397783]" />
+                  <span>Sign In</span>
+                </button>
+                <button
+                  onClick={() => onNavigate('new_case')}
+                  className="px-5 py-2.5 text-xs sm:text-sm font-semibold rounded-full bg-[#171717] hover:bg-black text-white shadow-sm transition flex items-center space-x-1.5"
+                >
+                  <span>Analyze Claim</span>
+                  <ArrowRight className="w-3.5 h-3.5" />
+                </button>
+              </div>
             )}
           </div>
         </div>

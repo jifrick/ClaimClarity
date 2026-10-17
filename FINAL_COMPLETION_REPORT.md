@@ -135,7 +135,19 @@
 
 ---
 
-## 7. How to Run Locally
+## 7. Editorial UI Redesign (Reference Design Implementation)
+- **Visual System**: Replaced default generic blue styling with a premium editorial design language matching the reference aesthetic:
+  - **Color Palette**: Pale teal background (`#B7D2D0`), deep sculpted teal hero surface (`#397783`), pure white primary cards (`#FFFFFF`), and crisp near-black headings (`#171717`).
+  - **Typography**: Incorporated Google Fonts `Plus Jakarta Sans` for body/interface and `Outfit` for oversized display typography.
+  - **Floating Pill Navigation**: Integrated circular shield logo, compact pill-style navigation tabs, and pill action CTAs.
+  - **Sculpted 3D Hero Visual**: Rendered healthcare claim composition with medical cross, verification badges, and policy document cloud motifs.
+  - **Feature Showcase & Benefit Rows**: Editorial asymmetrical card layout highlighting page-level extraction, deterministic citation validation, and neutral representation drafting.
+  - **Component Consistency**: Harmonized `DashboardView`, `DocumentUploadPanel`, `AnalysisWorkspace`, `NewCaseModal`, `AuthModal`, `RegulatoryGuidanceView`, and `PrivacySecurityView` with generous rounded containers (`rounded-[32px]` / `rounded-[44px]`).
+- **Functional Integrity**: Zero modifications to backend routes, database schema, AI adapters, citation validation logic, or authentication security. All 58 automated tests pass.
+
+---
+
+## 8. How to Run Locally
 
 ### Start Backend API Server
 ```bash

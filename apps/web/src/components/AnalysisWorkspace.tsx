@@ -98,22 +98,22 @@ export const AnalysisWorkspace: React.FC<AnalysisWorkspaceProps> = ({
   return (
     <div className="space-y-6">
       {/* Case Header Banner */}
-      <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm">
+      <div className="bg-white rounded-3xl border border-slate-200/90 p-6 shadow-sm">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div>
-            <div className="flex items-center space-x-2 mb-1.5">
-              <span className="px-2.5 py-0.5 text-xs font-semibold rounded-full bg-red-100 text-red-800 uppercase tracking-wide">
+            <div className="flex flex-wrap items-center gap-2 mb-2">
+              <span className="px-3 py-0.5 text-[10px] font-bold rounded-full bg-red-100 text-red-800 uppercase tracking-wider">
                 {claimCase.status.replace('_', ' ')}
               </span>
               <span className="text-xs text-slate-500 font-mono">
                 Ref: {claimCase.claim_reference || 'N/A'}
               </span>
               {findings[0]?.model_version.includes('gemini') || findings[0]?.model_version.includes('gpt') ? (
-                <span className="px-2.5 py-0.5 text-xs font-semibold rounded-full bg-emerald-100 text-emerald-800 border border-emerald-200">
+                <span className="px-3 py-0.5 text-[10px] font-bold rounded-full bg-emerald-100 text-emerald-800 border border-emerald-200">
                   Live AI Engine ({findings[0].model_version})
                 </span>
               ) : (
-                <span className="px-2.5 py-0.5 text-xs font-semibold rounded-full bg-amber-100 text-amber-800 border border-amber-200">
+                <span className="px-3 py-0.5 text-[10px] font-bold rounded-full bg-[#daf0ee] text-[#20444c] border border-[#b7d2d0]">
                   Deterministic Demo Engine
                 </span>
               )}
@@ -124,7 +124,7 @@ export const AnalysisWorkspace: React.FC<AnalysisWorkspaceProps> = ({
             </p>
           </div>
 
-          <div className="flex items-center space-x-3">
+          <div className="flex items-center space-x-2.5">
             <button
               onClick={() => {
                 const reportContent = `CLAIMCLARITY AUDIT & EVIDENCE REPORT
@@ -169,14 +169,14 @@ DISCLAIMER: ClaimClarity is an informational preparation tool. Confirm official 
                 a.click();
                 URL.revokeObjectURL(url);
               }}
-              className="px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-100 border border-slate-300 rounded-xl transition flex items-center space-x-1.5"
+              className="px-4 py-2 text-xs font-bold uppercase tracking-wider text-slate-700 hover:bg-slate-100 border border-slate-300 rounded-full transition flex items-center space-x-1.5"
             >
               <Download className="w-3.5 h-3.5 text-slate-600" />
               <span>Export Report</span>
             </button>
             <button
               onClick={onDeleteCase}
-              className="px-3 py-2 text-xs font-semibold text-red-600 hover:bg-red-50 border border-red-200 rounded-xl transition flex items-center space-x-1.5"
+              className="px-4 py-2 text-xs font-bold uppercase tracking-wider text-red-600 hover:bg-red-50 border border-red-200 rounded-full transition flex items-center space-x-1.5"
             >
               <Trash2 className="w-3.5 h-3.5" />
               <span>Delete Case</span>
@@ -184,29 +184,29 @@ DISCLAIMER: ClaimClarity is an informational preparation tool. Confirm official 
           </div>
         </div>
 
-        {/* Tab navigation */}
-        <div className="mt-6 flex space-x-2 border-b border-slate-200">
+        {/* Tab navigation in pill container */}
+        <div className="mt-6 flex flex-wrap gap-2 border-t border-slate-100 pt-4">
           <button
             onClick={() => setActiveTab('findings')}
-            className={`pb-3 text-sm font-semibold border-b-2 px-3 transition flex items-center space-x-2 ${
+            className={`px-4 py-2 text-xs font-bold uppercase tracking-wider rounded-full transition flex items-center space-x-2 ${
               activeTab === 'findings'
-                ? 'border-brand-600 text-brand-600'
-                : 'border-transparent text-slate-500 hover:text-slate-700'
+                ? 'bg-[#171717] text-white shadow-sm'
+                : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
             }`}
           >
-            <BookOpen className="w-4 h-4" />
+            <BookOpen className="w-3.5 h-3.5" />
             <span>Grounded Findings ({findings.length})</span>
           </button>
 
           <button
             onClick={() => setActiveTab('checklist')}
-            className={`pb-3 text-sm font-semibold border-b-2 px-3 transition flex items-center space-x-2 ${
+            className={`px-4 py-2 text-xs font-bold uppercase tracking-wider rounded-full transition flex items-center space-x-2 ${
               activeTab === 'checklist'
-                ? 'border-brand-600 text-brand-600'
-                : 'border-transparent text-slate-500 hover:text-slate-700'
+                ? 'bg-[#171717] text-white shadow-sm'
+                : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
             }`}
           >
-            <FileCheck2 className="w-4 h-4" />
+            <FileCheck2 className="w-3.5 h-3.5" />
             <span>Action Checklist ({checklist.length})</span>
           </button>
 
@@ -215,13 +215,13 @@ DISCLAIMER: ClaimClarity is an informational preparation tool. Confirm official 
               setActiveTab('draft');
               if (draft) setEditableDraft(draft.body);
             }}
-            className={`pb-3 text-sm font-semibold border-b-2 px-3 transition flex items-center space-x-2 ${
+            className={`px-4 py-2 text-xs font-bold uppercase tracking-wider rounded-full transition flex items-center space-x-2 ${
               activeTab === 'draft'
-                ? 'border-brand-600 text-brand-600'
-                : 'border-transparent text-slate-500 hover:text-slate-700'
+                ? 'bg-[#171717] text-white shadow-sm'
+                : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
             }`}
           >
-            <MessageSquare className="w-4 h-4" />
+            <MessageSquare className="w-3.5 h-3.5" />
             <span>Representation Draft</span>
           </button>
         </div>

@@ -57,13 +57,16 @@ export const NewCaseModal: React.FC<NewCaseModalProps> = ({ onCaseCreated, onCan
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto">
-      <div className="bg-white rounded-2xl max-w-xl w-full border border-slate-200 shadow-2xl p-6 sm:p-8 my-8">
+    <div className="fixed inset-0 z-50 bg-[#171717]/60 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto">
+      <div className="bg-white rounded-[32px] sm:rounded-[40px] max-w-xl w-full border border-black/10 shadow-2xl p-6 sm:p-8 my-8">
         <div className="flex items-center space-x-3 mb-6">
-          <div className="w-10 h-10 rounded-xl bg-brand-50 text-brand-600 flex items-center justify-center">
+          <div className="w-10 h-10 rounded-full bg-[#397783] text-white flex items-center justify-center shadow-inner">
             <Shield className="w-5 h-5" />
           </div>
           <div>
+            <span className="text-[10px] font-bold uppercase tracking-wider text-[#397783]">
+              NEW REPRESENTATION
+            </span>
             <h2 className="text-xl font-bold text-slate-900">Create New Claim Case</h2>
             <p className="text-xs text-slate-500">Provide basic claim identifiers to initialize source-grounded analysis.</p>
           </div>
@@ -183,14 +186,14 @@ export const NewCaseModal: React.FC<NewCaseModalProps> = ({ onCaseCreated, onCan
             <button
               type="button"
               onClick={onCancel}
-              className="px-4 py-2 text-sm font-medium text-slate-600 hover:text-slate-900 rounded-lg hover:bg-slate-100 transition"
+              className="px-5 py-2 text-xs font-bold uppercase tracking-wider text-slate-600 hover:text-slate-900 rounded-full hover:bg-slate-100 transition"
             >
               Cancel
             </button>
             <button
               type="submit"
               disabled={isSubmitting}
-              className="px-6 py-2.5 text-sm font-semibold text-white bg-brand-600 hover:bg-brand-700 disabled:opacity-50 rounded-xl shadow-sm transition flex items-center space-x-1.5"
+              className="px-6 py-2.5 text-xs font-bold uppercase tracking-wider text-white bg-[#397783] hover:bg-[#2B5E68] disabled:opacity-50 rounded-full shadow-sm transition flex items-center space-x-1.5"
             >
               <span>{isSubmitting ? 'Creating Case...' : 'Continue to Documents'}</span>
               <ArrowRight className="w-4 h-4" />
