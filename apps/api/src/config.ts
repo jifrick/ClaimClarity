@@ -11,7 +11,7 @@ const EnvSchema = z.object({
   STORAGE_MODE: z.enum(['memory', 'supabase']).default('memory'),
   AI_PROVIDER: z.enum(['gemini', 'openai', 'anthropic', 'demo']).default('demo'),
   GEMINI_API_KEY: z.string().optional(),
-  GEMINI_MODEL: z.string().default('gemini-1.5-pro'),
+  GEMINI_MODEL: z.string().default('gemini-1.5-flash'),
   OPENAI_API_KEY: z.string().optional(),
   OPENAI_MODEL: z.string().default('gpt-4o'),
   ANTHROPIC_API_KEY: z.string().optional(),

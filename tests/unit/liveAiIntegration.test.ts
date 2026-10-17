@@ -144,4 +144,95 @@ describe('Live AI Provider Adapter & Grounding Verification', () => {
       runAnalysisPipeline(mockCase, [mockDoc], mockBlocks, failingProvider)
     ).rejects.toThrow('Live AI Analysis failed');
   });
+
+  it('GeminiProviderAdapter handles 429 rate limit errors with user-friendly quota guidance', async () => {
+    const { GeminiProviderAdapter } = await import('../../apps/api/src/services/liveAiAdapters.js');
+    const adapter = new GeminiProviderAdapter('test-key', 'gemini-1.5-flash');
+
+    // Mock global fetch to return HTTP 429
+    const originalFetch = global.fetch;
+    global.fetch = async () => {
+      return {
+        ok: false,
+        status: 429,
+        text: async () => 'RESOURCE_EXHAUSTED',
+      } as any;
+    };
+
+    try {
+      await expect(
+        adapter.analyzeClaim({
+          caseTitle: 'Test Case',
+          claimType: 'reimbursement',
+          insurerName: 'Test Insurer',
+          claimReference: '123',
+          policyNumber: '456',
+          claimStatus: 'repudiated',
+          userNotes: 'none',
+          documentExcerpts: [],
+        })
+      ).rejects.toThrow('Gemini Free-Tier quota or rate limit exceeded');
+    } finally {
+      global.fetch = originalFetch;
+    }
+  });
+
+  it('GeminiProviderAdapter handles malformed completion JSON gracefully', async () => {
+    const { GeminiProviderAdapter } = await import('../../apps/api/src/services/liveAiAdapters.js');
+    const adapter = new GeminiProviderAdapter('test-key', 'gemini-1.5-flash');
+
+    const originalFetch = global.fetch;
+    global.fetch = async () => {
+      return {
+        ok: true,
+        status: 200,
+        json: async () => ({
+          candidates: [
+            {
+              content: {
+                parts: [{ text: 'NOT_VALID_JSON{[' }],
+              },
+            },
+          ],
+        }),
+      } as any;
+    };
+
+    try {
+      await expect(
+        adapter.analyzeClaim({
+          caseTitle: 'Test Case',
+          claimType: 'reimbursement',
+          insurerName: 'Test Insurer',
+          claimReference: '123',
+          policyNumber: '456',
+          claimStatus: 'repudiated',
+          userNotes: 'none',
+          documentExcerpts: [],
+        })
+      ).rejects.toThrow('Failed to parse Gemini JSON output');
+    } finally {
+      global.fetch = originalFetch;
+    }
+  });
+
+  it('GeminiProviderAdapter isConfigured returns false when key is missing or blank', async () => {
+    const { GeminiProviderAdapter } = await import('../../apps/api/src/services/liveAiAdapters.js');
+    const adapter = new GeminiProviderAdapter('', 'gemini-1.5-flash');
+    expect(adapter.isConfigured()).toBe(false);
+
+    await expect(
+      adapter.analyzeClaim({
+        caseTitle: 'Test',
+        claimType: 'reimbursement',
+        insurerName: 'Test',
+        claimReference: '123',
+        policyNumber: '456',
+        claimStatus: 'repudiated',
+        userNotes: '',
+        documentExcerpts: [],
+      })
+    ).rejects.toThrow('GEMINI_API_KEY is not configured on the server');
+  });
 });
+

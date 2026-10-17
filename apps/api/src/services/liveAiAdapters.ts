@@ -14,7 +14,7 @@ export class GeminiProviderAdapter implements LiveAIProviderAdapter {
 
   constructor(apiKey?: string, model?: string, timeoutMs?: number) {
     this.apiKey = apiKey || env.GEMINI_API_KEY;
-    this.model = model || env.GEMINI_MODEL || 'gemini-1.5-pro';
+    this.model = model || env.GEMINI_MODEL || 'gemini-1.5-flash';
     this.timeoutMs = timeoutMs || env.AI_TIMEOUT_MS || 30000;
   }
 
@@ -77,57 +77,86 @@ Respond with JSON adhering to this exact schema:
 }`;
 
     const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${this.model}:generateContent?key=${this.apiKey}`;
+    const payload = JSON.stringify({
+      contents: [
+        {
+          role: 'user',
+          parts: [{ text: `${systemPrompt}\n\n${userPrompt}` }]
+        }
+      ],
+      generationConfig: {
+        responseMimeType: 'application/json',
+        temperature: 0.1,
+      }
+    });
 
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), this.timeoutMs);
+    const executeRequest = async (): Promise<Response> => {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), this.timeoutMs);
+      try {
+        return await fetch(endpoint, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          signal: controller.signal,
+          body: payload,
+        });
+      } finally {
+        clearTimeout(timeoutId);
+      }
+    };
 
+    let response: Response;
     try {
-      const response = await fetch(endpoint, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        signal: controller.signal,
-        body: JSON.stringify({
-          contents: [
-            {
-              role: 'user',
-              parts: [{ text: `${systemPrompt}\n\n${userPrompt}` }]
-            }
-          ],
-          generationConfig: {
-            responseMimeType: 'application/json',
-            temperature: 0.1,
-          }
-        })
-      });
-
-      if (!response.ok) {
-        const errorText = await response.text();
-        throw new Error(`Gemini API returned HTTP ${response.status}: ${errorText}`);
+      response = await executeRequest();
+      // Bounded retry for transient 500/503 server errors only (max 1 retry with 1500ms delay)
+      if ((response.status === 500 || response.status === 503) && !response.ok) {
+        await new Promise(res => setTimeout(res, 1500));
+        response = await executeRequest();
       }
-
-      const data = await response.json();
-      const rawText = data.candidates?.[0]?.content?.parts?.[0]?.text;
-      if (!rawText) {
-        throw new Error('Gemini API returned an empty completion.');
-      }
-
-      const parsedJson = JSON.parse(rawText);
-      const validatedOutput = LLMAnalysisOutputSchema.parse(parsedJson);
-
-      return {
-        provider: 'gemini',
-        model: this.model,
-        output: validatedOutput,
-        rawResponse: rawText,
-      };
     } catch (err: any) {
       if (err.name === 'AbortError') {
         throw new Error(`Gemini API call timed out after ${this.timeoutMs}ms.`);
       }
       throw err;
-    } finally {
-      clearTimeout(timeoutId);
     }
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      if (response.status === 429) {
+        throw new Error(
+          'Gemini Free-Tier quota or rate limit exceeded (15 RPM / 1,500 RPD). Please wait 60 seconds before trying again.'
+        );
+      }
+      if (response.status === 400 && errorText.includes('API_KEY_INVALID')) {
+        throw new Error('Invalid GEMINI_API_KEY configured in backend environment.');
+      }
+      if (response.status === 404) {
+        throw new Error(`Configured Gemini model '${this.model}' was not found or is unavailable on this API tier.`);
+      }
+      throw new Error(`Gemini API returned HTTP ${response.status}: ${errorText}`);
+    }
+
+    const data = await response.json();
+    const rawText = data.candidates?.[0]?.content?.parts?.[0]?.text;
+    if (!rawText) {
+      throw new Error('Gemini API returned an empty completion.');
+    }
+
+    let parsedJson: unknown;
+    try {
+      parsedJson = JSON.parse(rawText);
+    } catch (parseErr: any) {
+      throw new Error(`Failed to parse Gemini JSON output: ${parseErr.message}`);
+    }
+
+    const validatedOutput = LLMAnalysisOutputSchema.parse(parsedJson);
+
+    return {
+      provider: 'gemini',
+      model: this.model,
+      output: validatedOutput,
+      rawResponse: rawText,
+    };
   }
 }
 
